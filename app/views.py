@@ -5,9 +5,14 @@ Werkzeug Documentation:  https://werkzeug.palletsprojects.com/
 This file creates your application.
 """
 
+from itsdangerous import json
 from app import app
 from flask import render_template, request, jsonify, send_file
 import os
+from .forms import UploadForm
+from werkzeug.utils import secure_filename
+from flask_wtf.csrf import generate_csrf
+
 
 
 ###
@@ -43,6 +48,25 @@ def send_text_file(file_name):
     """Send your static text file."""
     file_dot_text = file_name + '.txt'
     return app.send_static_file(file_dot_text)
+
+@app.route('/api/upload', methods=['POST'])
+def upload():
+    form = UploadForm()
+    if form.validate_on_submit():
+        image = form.photo.data
+        image_fn = secure_filename(image.filename)
+        image.save(
+                os.path.join(os.getcwd(), app.config['UPLOAD_FOLDER'], image_fn)
+            )
+        return jsonify(message='File Upload Successful',
+                        filename=image_fn, description=form.description.data), 200
+    else:
+        return jsonify(form_errors(form)), 500
+
+@app.route('/api/csrf-token', methods=['GET'])
+def get_csrf():
+    return jsonify({'csrf_token': generate_csrf()})
+
 
 
 @app.after_request
